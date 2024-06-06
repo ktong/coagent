@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         module: [ '' ]
-        go-version: [ 'stable' ]
+        go-version: [ 'stable', 'oldstable' ]
     name: Test
     runs-on: ubuntu-latest
     steps:

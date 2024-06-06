@@ -18,8 +18,8 @@ func TestCodeInterpreter_MarshalJSON(t *testing.T) {
 
 func TestFunction_MarshalJSON(t *testing.T) {
 	type location struct {
-		City  string `json:"city"            jsonschema:"description=The city name,example=San Francisco"`
-		State string `json:"state,omitempty" jsonschema:"description=The state abbreviation,example=CA"`
+		City  string `json:"city"            description:"The city name"          example:"San Francisco"`
+		State string `json:"state,omitempty" description:"The state abbreviation" example:"CA"`
 	}
 	json, err := assistant.Function[location, float32]{
 		Name:        "RainProbability",
@@ -31,8 +31,7 @@ func TestFunction_MarshalJSON(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t,
 		`{"type":"function","function":{"name":"RainProbability","description":"Get the probability of rain for a specific location",`+
-			`"parameters":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{`+
-			`"city":{"type":"string","description":"The city name","examples":["San Francisco"]},`+
+			`"parameters":{"properties":{"city":{"type":"string","description":"The city name","examples":["San Francisco"]},`+
 			`"state":{"type":"string","description":"The state abbreviation","examples":["CA"]}`+
 			`},"additionalProperties":false,"type":"object","required":["city"]}}}`,
 		string(json),
