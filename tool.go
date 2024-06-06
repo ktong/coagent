@@ -6,11 +6,9 @@ package assistant
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
-
-	"github.com/invopop/jsonschema"
 
 	"github.com/ktong/assistant/embedded"
+	"github.com/ktong/assistant/internal"
 )
 
 // Tool is a tool that can be used by an Assistant.
@@ -81,15 +79,13 @@ func (f Function[A, R]) call(arguments []byte) string {
 }
 
 func (f Function[A, R]) MarshalJSON() ([]byte, error) {
-	locType := reflect.TypeFor[A]()
-	reflector := jsonschema.Reflector{
-		Anonymous:      true,
-		DoNotReference: true,
+	schema, err := internal.SchemaFor[A]()
+	if err != nil {
+		return nil, fmt.Errorf("generate parameter schema: %w", err)
 	}
-	schema := reflector.ReflectFromType(locType)
 	parameters, err := json.Marshal(schema)
 	if err != nil {
-		return nil, fmt.Errorf("marshal json schema: %w", err)
+		return nil, fmt.Errorf("marshal parameter schema: %w", err)
 	}
 	s := fmt.Sprintf(`{"type":"function","function":{"name":"%s","description":"%s","parameters":%s}}`,
 		f.Name, f.Description, parameters)

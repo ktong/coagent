@@ -151,4 +151,5 @@ issues:
         - gochecknoinits
         - goconst
         - lll
+        - tagalign
         - wrapcheck
