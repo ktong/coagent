@@ -27,16 +27,16 @@ func TestRun(t *testing.T) {
 
 	message, err := assistant.Run[string, string](context.Background(),
 		"What's the weather in San Francisco today and the likelihood it'll rain?",
-		assistant.WithInstructions("You are a weather bot. Use the provided functions to answer questions."),
+		assistant.WithInstructions("You are a weather bot."),
 		assistant.WithTool(
 			assistant.Function[location, temperature]{
-				Name: "get_current_temperature",
+				Name: "getCurrentTemperature",
 				Function: func(location) (temperature, error) {
 					return temperature{Temperature: 72, Unit: "Fahrenheit"}, nil
 				},
 			},
 			assistant.Function[location, float32]{
-				Name: "get_rain_probability",
+				Name: "getRainProbability",
 				Function: func(location) (float32, error) {
 					return 0.2, nil
 				},

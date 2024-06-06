@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ktong/assistant/embedded"
-	"github.com/ktong/assistant/internal"
+	"github.com/ktong/assistant/internal/embedded"
+	"github.com/ktong/assistant/internal/schema"
 )
 
 // Tool is a tool that can be used by an Assistant.
@@ -79,7 +79,7 @@ func (f Function[A, R]) call(arguments []byte) string {
 }
 
 func (f Function[A, R]) MarshalJSON() ([]byte, error) {
-	schema, err := internal.SchemaFor[A]()
+	schema, err := schema.For[A]()
 	if err != nil {
 		return nil, fmt.Errorf("generate parameter schema: %w", err)
 	}
