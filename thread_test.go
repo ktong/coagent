@@ -16,8 +16,8 @@ import (
 func TestRun(t *testing.T) {
 	type (
 		location struct {
-			City  string `json:"city"            jsonschema:"description=The city name,example=San Francisco"`
-			State string `json:"state,omitempty" jsonschema:"description=The state abbreviation,example=CA"`
+			City  string `json:"city"            description:"The city name"          example:"San Francisco"`
+			State string `json:"state,omitempty" description:"The state abbreviation" example:"CA"`
 		}
 		temperature struct {
 			Temperature float32
@@ -30,15 +30,13 @@ func TestRun(t *testing.T) {
 		assistant.WithInstructions("You are a weather bot. Use the provided functions to answer questions."),
 		assistant.WithTool(
 			assistant.Function[location, temperature]{
-				Name:        "CurrentTemperature",
-				Description: "Get the current temperature for a specific location",
+				Name: "get_current_temperature",
 				Function: func(location) (temperature, error) {
 					return temperature{Temperature: 72, Unit: "Fahrenheit"}, nil
 				},
 			},
 			assistant.Function[location, float32]{
-				Name:        "RainProbability",
-				Description: "Get the probability of rain for a specific location",
+				Name: "get_rain_probability",
 				Function: func(location) (float32, error) {
 					return 0.2, nil
 				},
