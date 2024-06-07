@@ -3,7 +3,9 @@
 
 package assistant
 
-import "github.com/ktong/assistant/internal"
+import (
+	"github.com/ktong/assistant/client"
+)
 
 func WithModel(model string) Option {
 	return func(options *options) {
@@ -23,12 +25,18 @@ func WithTool(tools ...Tool) Option {
 	}
 }
 
+func WithClient(client client.Client) Option {
+	return func(options *options) {
+		options.client = client
+	}
+}
+
 type (
 	Option  func(*options)
 	options struct {
 		model        string
 		instructions string
 		tools        []Tool
-		client       internal.Client
+		client       client.Client
 	}
 )

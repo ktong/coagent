@@ -7,9 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
-	"github.com/ktong/assistant/internal"
+	"github.com/ktong/assistant/client"
 )
 
 func Run[M string | Message | []Message, R any]( //nolint:cyclop,funlen,ireturn
@@ -28,7 +27,7 @@ func Run[M string | Message | []Message, R any]( //nolint:cyclop,funlen,ireturn
 	}
 	options := &options{
 		model:  "gpt-4o",
-		client: internal.NewClient(os.Getenv("OPENAI_API_KEY")),
+		client: defaultClient,
 	}
 	for _, opt := range opts {
 		opt(options)
@@ -49,7 +48,7 @@ func Run[M string | Message | []Message, R any]( //nolint:cyclop,funlen,ireturn
 	assistantID := struct {
 		ID string `json:"id,omitempty"`
 	}{}
-	if err := options.client.Unary(ctx, "/assistants", assistant, &assistantID); err != nil {
+	if err := options.client.Post(ctx, "/assistants", assistant, &assistantID); err != nil {
 		return result, fmt.Errorf("create assistant: %w", err)
 	}
 	defer func() {
@@ -72,7 +71,7 @@ func Run[M string | Message | []Message, R any]( //nolint:cyclop,funlen,ireturn
 			thread.ToolResources["code_interpreter"] = fileIDs
 		}
 	}
-	if err := options.client.Unary(ctx, "/threads", thread, &thread); err != nil {
+	if err := options.client.Post(ctx, "/threads", thread, &thread); err != nil {
 		return result, fmt.Errorf("create thread: %w", err)
 	}
 	defer func() {
@@ -97,13 +96,15 @@ func Run[M string | Message | []Message, R any]( //nolint:cyclop,funlen,ireturn
 	return handler.result, nil
 }
 
+var defaultClient = client.New() //nolint:gochecknoglobals
+
 type eventHandler[R any] struct {
-	client internal.Client
+	client client.Client
 	tools  []Tool
 	result R
 }
 
-func (h *eventHandler[R]) handle(ctx context.Context, event internal.Event) error { //nolint:cyclop,funlen
+func (h *eventHandler[R]) handle(ctx context.Context, event client.Event) error { //nolint:cyclop,funlen
 	switch event.Type {
 	case "thread.run.requires_action":
 		action := struct {

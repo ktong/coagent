@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ktong/assistant/embedded"
+	embedded2 "github.com/ktong/assistant/internal/embedded"
 )
 
 const (
@@ -23,7 +23,7 @@ const (
 )
 
 type (
-	// Message created by an Assistant or a user.
+	// Message created by an assistant or a user.
 	Message struct {
 		// Role of the entity that is creating the message.
 		Role Role
@@ -31,22 +31,23 @@ type (
 		// Image types are only supported on Vision-compatible models.
 		Content []Content
 		// Tools that are for files attached to the message for specific tools.
+		// It only applies to the built-in tools like code_interpreter and file_search.
 		Tools []BuiltInTool
 	}
 
 	Role    string
 	Content interface {
-		embedded.Content
+		embedded2.Content
 	}
 )
 
 func (m Message) MarshalJSON() ([]byte, error) {
 	type Attachment struct {
-		FileID string          `json:"file_id"`
-		Tools  []embedded.Tool `json:"tools"`
+		FileID string           `json:"file_id"`
+		Tools  []embedded2.Tool `json:"tools"`
 	}
 	var attachments []*Attachment
-	appendFiles := func(tool embedded.Tool, files []File) {
+	appendFiles := func(tool embedded2.Tool, files []File) {
 	fileLoop:
 		for _, file := range files {
 			for _, attachment := range attachments {
@@ -56,7 +57,7 @@ func (m Message) MarshalJSON() ([]byte, error) {
 					continue fileLoop
 				}
 			}
-			attachments = append(attachments, &Attachment{FileID: file.ID, Tools: []embedded.Tool{tool}})
+			attachments = append(attachments, &Attachment{FileID: file.ID, Tools: []embedded2.Tool{tool}})
 		}
 	}
 	for _, tool := range m.Tools {
@@ -74,7 +75,7 @@ func (m Message) MarshalJSON() ([]byte, error) {
 
 // Text content that is part of a message.
 type Text struct {
-	embedded.Content
+	embedded2.Content
 
 	// Text content to be sent to the model.
 	Text string
@@ -93,7 +94,7 @@ const (
 type (
 	// Image is a references an image File or URL in the content of a message.
 	Image[F string | []byte] struct {
-		embedded.Content
+		embedded2.Content
 
 		// URL to the File ID or external URL of the image in the message content.
 		// Set purpose="vision" when uploading the File if you need to later display the file content.

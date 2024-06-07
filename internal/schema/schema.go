@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT license found in the LICENSE file.
 
 //nolint:err113
-package internal
+package schema
 
 import (
 	"encoding/json"
@@ -17,6 +17,17 @@ import (
 	"time"
 )
 
+type DataType string
+
+const (
+	TypeBoolean DataType = "boolean"
+	TypeInteger DataType = "integer"
+	TypeNumber  DataType = "number"
+	TypeString  DataType = "string"
+	TypeArray   DataType = "array"
+	TypeObject  DataType = "object"
+)
+
 type Schema struct {
 	// JSON schema core: section 10.3
 	Items                *Schema            `json:"items,omitempty"`                // 10.3.1.2
@@ -24,8 +35,8 @@ type Schema struct {
 	AdditionalProperties any                `json:"additionalProperties,omitempty"` // 10.3.2.3
 
 	// JSON schema validation: section 6.1
-	Type string `json:"type,omitempty"` // 6.1.1
-	Enum []any  `json:"enum,omitempty"` // 6.1.2
+	Type DataType `json:"type,omitempty"` // 6.1.1
+	Enum []any    `json:"enum,omitempty"` // 6.1.2
 
 	// JSON schema validation: section 6.2
 	MultipleOf       *float64 `json:"multipleOf,omitempty"`       // 6.2.1
@@ -61,7 +72,7 @@ type Schema struct {
 	Examples    []any  `json:"examples,omitempty"`    // 9.5
 }
 
-func SchemaFor[T any]() (_ *Schema, err error) { //nolint:nonamedreturns
+func For[T any]() (_ *Schema, err error) { //nolint:nonamedreturns
 	defer func() {
 		if r := recover(); r != nil {
 			var ok bool
@@ -74,15 +85,6 @@ func SchemaFor[T any]() (_ *Schema, err error) { //nolint:nonamedreturns
 	return schemaFor(reflect.TypeOf((*T)(nil)).Elem()), nil
 }
 
-const (
-	typeBoolean = "boolean"
-	typeInteger = "integer"
-	typeNumber  = "number"
-	typeString  = "string"
-	typeArray   = "array"
-	typeObject  = "object"
-)
-
 func schemaFor(typ reflect.Type) *Schema { //nolint:cyclop,funlen,gocognit,gocyclo
 	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
@@ -92,13 +94,13 @@ func schemaFor(typ reflect.Type) *Schema { //nolint:cyclop,funlen,gocognit,gocyc
 	// JSON schema validation: section 7.3
 	switch reflect.Zero(typ).Interface().(type) {
 	case time.Time:
-		return &Schema{Type: typeString, Format: "date-time"}
+		return &Schema{Type: TypeString, Format: "date-time"}
 	case url.URL:
-		return &Schema{Type: typeString, Format: "uri"}
+		return &Schema{Type: TypeString, Format: "uri"}
 	case net.IP:
-		return &Schema{Type: typeString, Format: "ipv4"}
+		return &Schema{Type: TypeString, Format: "ipv4"}
 	case netip.Addr:
-		return &Schema{Type: typeString, Format: "ipv4"}
+		return &Schema{Type: TypeString, Format: "ipv4"}
 	case json.RawMessage:
 		return &Schema{}
 	}
@@ -106,42 +108,42 @@ func schemaFor(typ reflect.Type) *Schema { //nolint:cyclop,funlen,gocognit,gocyc
 	minZero := 0.0
 	switch typ.Kind() {
 	case reflect.Bool:
-		return &Schema{Type: typeBoolean}
+		return &Schema{Type: TypeBoolean}
 	case reflect.Int:
 		format := "int64"
 		if bits.UintSize == 32 { //nolint:mnd
 			format = "int32"
 		}
 
-		return &Schema{Type: typeInteger, Format: format}
+		return &Schema{Type: TypeInteger, Format: format}
 	case reflect.Int8, reflect.Int16, reflect.Int32:
-		return &Schema{Type: typeInteger, Format: "int32"}
+		return &Schema{Type: TypeInteger, Format: "int32"}
 	case reflect.Int64:
-		return &Schema{Type: typeInteger, Format: "int64"}
+		return &Schema{Type: TypeInteger, Format: "int64"}
 	case reflect.Uint:
 		format := "int64"
 		if bits.UintSize == 32 { //nolint:mnd
 			format = "int32"
 		}
 
-		return &Schema{Type: typeInteger, Format: format, Minimum: &minZero}
+		return &Schema{Type: TypeInteger, Format: format, Minimum: &minZero}
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32:
-		return &Schema{Type: typeInteger, Format: "int32", Minimum: &minZero}
+		return &Schema{Type: TypeInteger, Format: "int32", Minimum: &minZero}
 	case reflect.Uint64:
-		return &Schema{Type: typeInteger, Format: "int64", Minimum: &minZero}
+		return &Schema{Type: TypeInteger, Format: "int64", Minimum: &minZero}
 	case reflect.Float32:
-		return &Schema{Type: typeNumber, Format: "float"}
+		return &Schema{Type: TypeNumber, Format: "float"}
 	case reflect.Float64:
-		return &Schema{Type: typeNumber, Format: "double"}
+		return &Schema{Type: TypeNumber, Format: "double"}
 	case reflect.String:
-		return &Schema{Type: typeString}
+		return &Schema{Type: TypeString}
 	case reflect.Slice, reflect.Array:
 		if typ.Elem().Kind() == reflect.Uint8 {
 			// Special case: []byte will be serialized as a base64 string.
-			return &Schema{Type: typeString, ContentEncoding: "base64"}
+			return &Schema{Type: TypeString, ContentEncoding: "base64"}
 		}
 
-		schema := &Schema{Type: typeArray, Items: schemaFor(typ.Elem())}
+		schema := &Schema{Type: TypeArray, Items: schemaFor(typ.Elem())}
 		if typ.Kind() == reflect.Array {
 			l := typ.Len()
 			schema.MaxItems = &l
@@ -150,7 +152,7 @@ func schemaFor(typ reflect.Type) *Schema { //nolint:cyclop,funlen,gocognit,gocyc
 
 		return schema
 	case reflect.Map:
-		return &Schema{Type: typeObject, AdditionalProperties: schemaFor(typ.Elem())}
+		return &Schema{Type: TypeObject, AdditionalProperties: schemaFor(typ.Elem())}
 	case reflect.Struct:
 		var required []string
 		fieldSet := make(map[string]struct{})
@@ -194,7 +196,7 @@ func schemaFor(typ reflect.Type) *Schema { //nolint:cyclop,funlen,gocognit,gocyc
 			}
 		}
 
-		return &Schema{Type: typeObject, Properties: props, Required: required, AdditionalProperties: additionalProps}
+		return &Schema{Type: TypeObject, Properties: props, Required: required, AdditionalProperties: additionalProps}
 	default:
 		return &Schema{}
 	}
@@ -251,7 +253,7 @@ func schemaForField(field reflect.StructField) *Schema {
 	}
 	if enum := field.Tag.Get("enum"); enum != "" {
 		schema := fieldSchema
-		if schema.Type == typeArray {
+		if schema.Type == TypeArray {
 			schema = schema.Items
 		}
 
@@ -328,12 +330,12 @@ func floatTag(field reflect.StructField, tag string) *float64 {
 
 func jsonTagValue(fieldName string, schema *Schema, value string) any {
 	// Special case: strings don't need quotes.
-	if schema.Type == typeString {
+	if schema.Type == TypeString {
 		return value
 	}
 
 	// Special case: array of strings with comma-separated values and no quotes.
-	if schema.Type == typeArray && schema.Items != nil && schema.Items.Type == typeString && value[0] != '[' {
+	if schema.Type == TypeArray && schema.Items != nil && schema.Items.Type == TypeString && value[0] != '[' {
 		var values []string
 		for _, s := range strings.Split(value, ",") {
 			values = append(values, strings.TrimSpace(s))
@@ -353,23 +355,23 @@ func jsonTagValue(fieldName string, schema *Schema, value string) any {
 
 func ensureType(fieldName string, schema *Schema, value string, tagValue any) { //nolint:cyclop
 	switch schema.Type {
-	case typeBoolean:
+	case TypeBoolean:
 		if _, ok := tagValue.(bool); !ok {
 			panic(fmt.Errorf("invalid boolean tag value '%s' for field '%s'", value, fieldName))
 		}
-	case typeNumber:
+	case TypeNumber:
 		if _, ok := tagValue.(float64); !ok {
 			panic(fmt.Errorf("invalid number tag value '%s' for field '%s'", value, fieldName))
 		}
-	case typeInteger:
+	case TypeInteger:
 		if f, ok := tagValue.(float64); !ok || f != float64(int(f)) {
 			panic(fmt.Errorf("invalid integer tag value '%s' for field '%s'", value, fieldName))
 		}
-	case typeString:
+	case TypeString:
 		if _, ok := tagValue.(string); !ok {
 			panic(fmt.Errorf("invalid string tag value '%s' for field '%s'", value, fieldName))
 		}
-	case typeArray:
+	case TypeArray:
 		items, ok := tagValue.([]any)
 		if !ok {
 			panic(fmt.Errorf("invalid array tag value '%s' for field '%s'", value, fieldName))
@@ -381,7 +383,7 @@ func ensureType(fieldName string, schema *Schema, value string, tagValue any) { 
 				ensureType(fieldName+"["+strconv.Itoa(i)+"]", schema.Items, string(b), item)
 			}
 		}
-	case typeObject:
+	case TypeObject:
 		if _, ok := tagValue.(map[string]any); !ok {
 			panic(fmt.Errorf("invalid object tag value '%s' for field '%s'", value, fieldName))
 		}
