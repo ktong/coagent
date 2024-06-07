@@ -242,7 +242,7 @@ func TestClient_Stream(t *testing.T) {
 	}
 }
 
-func TestClient_File(t *testing.T) {
+func TestClient_UploadFile(t *testing.T) {
 	testcases := []struct {
 		description string
 		httpClient  *http.Client
@@ -314,7 +314,7 @@ func TestClient_File(t *testing.T) {
 	for _, testcase := range testcases {
 		t.Run(testcase.description, func(t *testing.T) {
 			subject := client.New(client.WithHTTPClient(testcase.httpClient))
-			fileID, err := subject.File(context.Background(), "a.html", strings.NewReader("<html></html>"))
+			fileID, err := subject.UploadFile(context.Background(), "a.html", strings.NewReader("<html></html>"))
 			if testcase.error != "" {
 				assert.EqualError(t, err, testcase.error)
 

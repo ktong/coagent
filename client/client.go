@@ -136,10 +136,10 @@ func (c Client) Delete(ctx context.Context, path string) error {
 	return nil
 }
 
-// File uploads a file with the given name and content to OpenAI [files] storage.
+// UploadFile uploads a file with the given name and content to OpenAI [files] storage.
 //
 // [files]: https://platform.openai.com/docs/api-reference/files
-func (c Client) File(ctx context.Context, name string, content io.Reader) (string, error) {
+func (c Client) UploadFile(ctx context.Context, name string, content io.Reader) (string, error) {
 	buf := new(bytes.Buffer)
 
 	writer := multipart.NewWriter(buf)
