@@ -283,7 +283,7 @@ func TestClient_UploadFile(t *testing.T) {
 					return &http.Response{}, errors.New("file error")
 				}),
 			},
-			error: `handle file request: Post "https://api.openai.com/v1/files": file error`,
+			error: `handle upload file request: Post "https://api.openai.com/v1/files": file error`,
 		},
 		{
 			description: "error status code",
@@ -295,7 +295,7 @@ func TestClient_UploadFile(t *testing.T) {
 					}, nil
 				}),
 			},
-			error: "file request response 404: Page Not Found",
+			error: "upload file response 404: Page Not Found",
 		},
 		{
 			description: "error unmarshal",
@@ -303,11 +303,11 @@ func TestClient_UploadFile(t *testing.T) {
 				Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 					return &http.Response{
 						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(bytes.NewBufferString(`asst-123`)),
+						Body:       io.NopCloser(bytes.NewBufferString(`file-123`)),
 					}, nil
 				}),
 			},
-			error: "unmarshal file response: invalid character 'a' looking for beginning of value",
+			error: "unmarshal upload file response: invalid character 'i' in literal false (expecting 'a')",
 		},
 	}
 
@@ -322,6 +322,75 @@ func TestClient_UploadFile(t *testing.T) {
 			}
 			assert.NoError(t, err)
 			assert.Equal(t, testcase.expected, fileID)
+		})
+	}
+}
+
+func TestClient_DownloadFile(t *testing.T) {
+	testcases := []struct {
+		description string
+		httpClient  *http.Client
+		expected    string
+		error       string
+	}{
+		{
+			description: "success",
+			httpClient: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					assert.Equal(t, "application/json", req.Header.Get("Accept"))
+					assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+					assert.True(t, strings.HasPrefix(req.Header.Get("Authorization"), "Bearer "))
+					assert.Equal(t, "assistants=v2", req.Header.Get("OpenAI-Beta")) //nolint:canonicalheader
+					assert.Equal(t, "GET", req.Method)
+					assert.Equal(t, "/v1/files/file-123/content", req.URL.Path)
+
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(bytes.NewBufferString("<html></html>")),
+					}, nil
+				}),
+			},
+			expected: "<html></html>",
+		},
+		{
+			description: "error",
+			httpClient: &http.Client{
+				Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+					return &http.Response{}, errors.New("file error")
+				}),
+			},
+			error: `handle download file request: Get "https://api.openai.com/v1/files/file-123/content": file error`,
+		},
+		{
+			description: "error status code",
+			httpClient: &http.Client{
+				Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+					return &http.Response{
+						StatusCode: http.StatusNotFound,
+						Body:       io.NopCloser(bytes.NewBufferString(`Page Not Found`)),
+					}, nil
+				}),
+			},
+			error: "download file response 404: Page Not Found",
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.description, func(t *testing.T) {
+			subject := client.New(client.WithHTTPClient(testcase.httpClient))
+			file, err := subject.DownloadFile(context.Background(), "file-123")
+			if testcase.error != "" {
+				assert.EqualError(t, err, testcase.error)
+
+				return
+			}
+			assert.NoError(t, err)
+			defer func() {
+				_ = file.Close()
+			}()
+			content, err := io.ReadAll(file)
+			assert.NoError(t, err)
+			assert.Equal(t, testcase.expected, string(content))
 		})
 	}
 }

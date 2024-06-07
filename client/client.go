@@ -159,14 +159,14 @@ func (c Client) UploadFile(ctx context.Context, name string, content io.Reader) 
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.host+"/files", buf)
 	if err != nil {
-		return "", fmt.Errorf("create file request: %w", err)
+		return "", fmt.Errorf("create upload file request: %w", err)
 	}
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 	c.setHeader(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("handle file request: %w", err)
+		return "", fmt.Errorf("handle upload file request: %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -174,17 +174,38 @@ func (c Client) UploadFile(ctx context.Context, name string, content io.Reader) 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		body, _ := io.ReadAll(resp.Body)
 
-		return "", fmt.Errorf("file request response %d: %s", resp.StatusCode, body) //nolint:err113
+		return "", fmt.Errorf("upload file response %d: %s", resp.StatusCode, body) //nolint:err113
 	}
 
 	var file struct {
 		ID string `json:"id"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&file); err != nil {
-		return "", fmt.Errorf("unmarshal file response: %w", err)
+		return "", fmt.Errorf("unmarshal upload file response: %w", err)
 	}
 
 	return file.ID, nil
+}
+
+func (c Client) DownloadFile(ctx context.Context, id string) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.host+"/files/"+id+"/content", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create download file request: %w", err)
+	}
+	c.setHeader(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("handle download file request: %w", err)
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+
+		return nil, fmt.Errorf("download file response %d: %s", resp.StatusCode, body) //nolint:err113
+	}
+
+	return resp.Body, nil
 }
 
 // Stream sends a [streaming] request to the given path with request body.
