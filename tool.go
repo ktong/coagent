@@ -4,43 +4,21 @@
 package assistant
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"reflect"
+	"runtime"
+	"strings"
 
+	"github.com/ktong/assistant/internal"
 	"github.com/ktong/assistant/internal/embedded"
 	"github.com/ktong/assistant/internal/schema"
 )
 
-// Tool is a tool that can be used by an Assistant.
 type Tool interface {
 	embedded.Tool
-}
-
-// BuiltInTool is a OpenAI-hosted Tool like code_interpreter and file_search.
-type BuiltInTool interface {
-	embedded.BuiltInTool
-}
-
-// File is used to upload document.
-type File struct {
-	ID string
-}
-
-// CodeInterpreter allows Assistants to write and run Python code in a sandboxed execution environment.
-// This tool can process files with diverse Data and formatting, and generate files with Data and images of graphs.
-// Code Interpreter allows your Assistant to run code iteratively to solve challenging code and math problems.
-// When your Assistant writes code that fails to run, it can iterate on this code by attempting to
-// run different code until the code execution succeeds.
-type CodeInterpreter struct {
-	embedded.BuiltInTool
-
-	// A list of files made available to the code_interpreter tool.
-	// There can be a maximum of 20 files associated with the tool.
-	Files []File
-}
-
-func (c CodeInterpreter) MarshalJSON() ([]byte, error) {
-	return []byte(`{"type":"code_interpreter"}`), nil
 }
 
 // Function calling allows you to describe functions to the Assistants API
@@ -54,41 +32,78 @@ type Function[A, R any] struct {
 	// A description of what the function does, used by the model to choose when and how to call the function.
 	Description string
 	// The real function attached to the tool.
-	Function func(A) (R, error)
+	Function func(ctx context.Context, argument A) (R, error)
 }
 
-func (f Function[A, R]) name() string {
+// FunctionFor creates a function tool for either a function or a assistant.
+// //TODO: how to pass thread it to function call?
+func FunctionFor[A, R any, S func(context.Context, A) (R, error) | Assistant](s S) Function[A, R] {
+	switch from := any(s).(type) {
+	case Assistant:
+		return Function[A, R]{
+			Name:        from.Name,
+			Description: from.Description,
+			Function: func(ctx context.Context, argument A) (R, error) {
+				threadID := fmt.Sprintf("%s", ctx.Value(internal.ContextKeyThreadID{}))
+				if threadID == "" {
+					return *new(R), errors.New("thread id is mandatory for assistant tool") //nolint:err113
+				}
+				message, err := toMessage(argument)
+				if err != nil {
+					return *new(R), fmt.Errorf("convert argument to content: %w", err)
+				}
+
+				return Run[Message, R](ctx, &from, &Thread{ID: threadID}, message)
+			},
+		}
+	case func(context.Context, A) (R, error):
+		name := runtime.FuncForPC(reflect.ValueOf(from).Pointer()).Name()
+		name = name[strings.LastIndex(name, ".")+1:]
+
+		return Function[A, R]{
+			Name:     name,
+			Function: from,
+		}
+	default:
+		return Function[A, R]{} // Should not happen.
+	}
+}
+
+// Below are workarounds for allowing the generic type to be used in the function call.
+// TODO: revise the workaround.
+
+type FunctionSchema struct {
+	Name        string
+	Description string
+	Parameter   *schema.Schema
+}
+
+func (f Function[A, R]) Schema() (FunctionSchema, error) {
+	parameterSchema, err := schema.For[A]()
+	if err != nil {
+		return FunctionSchema{}, fmt.Errorf("generate function schema: %w", err)
+	}
+
+	return FunctionSchema{
+		Name:        f.Name,
+		Description: f.Description,
+		Parameter:   parameterSchema,
+	}, nil
+}
+
+func (f Function[A, R]) ID() string {
 	return f.Name
 }
 
-func (f Function[A, R]) call(arguments []byte) string {
+func (f Function[A, R]) Call(ctx context.Context, argument string) (Message, error) {
 	var a A
-	if err := json.Unmarshal(arguments, &a); err != nil {
-		return fmt.Sprintf(`{"error": "unmarshal arguments: %s"}`, err)
+	if err := json.Unmarshal([]byte(argument), &a); err != nil {
+		return Message{}, fmt.Errorf("unmarshal function call arguments: %w", err)
 	}
-	r, err := f.Function(a)
+	r, err := f.Function(ctx, a)
 	if err != nil {
-		return fmt.Sprintf(`{"error": "call function: %s"}`, err)
-	}
-	b, err := json.Marshal(r)
-	if err != nil {
-		return fmt.Sprintf(`{"error": "marshal result: %s"}`, err)
+		return Message{}, fmt.Errorf("call function: %w", err)
 	}
 
-	return string(b)
-}
-
-func (f Function[A, R]) MarshalJSON() ([]byte, error) {
-	schema, err := schema.For[A]()
-	if err != nil {
-		return nil, fmt.Errorf("generate parameter schema: %w", err)
-	}
-	parameters, err := json.Marshal(schema)
-	if err != nil {
-		return nil, fmt.Errorf("marshal parameter schema: %w", err)
-	}
-	s := fmt.Sprintf(`{"type":"function","function":{"name":"%s","description":"%s","parameters":%s}}`,
-		f.Name, f.Description, parameters)
-
-	return []byte(s), nil
+	return toMessage(r)
 }

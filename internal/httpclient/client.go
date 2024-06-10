@@ -130,7 +130,7 @@ func marshalRequest(req *http.Request, request any) error {
 			return err
 		}
 		req.Body = io.NopCloser(buf)
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Reader-Type", "application/json")
 	}
 
 	return nil
@@ -143,8 +143,6 @@ func unmarshalResponse(resp *http.Response, response any) error {
 	}
 
 	switch value := response.(type) {
-	case *io.Reader:
-		*value = bytes.NewReader(body)
 	case *[]byte:
 		*value = body
 	case *string:

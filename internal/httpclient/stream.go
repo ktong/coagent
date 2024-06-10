@@ -20,7 +20,7 @@ type Event struct {
 	Data []byte
 }
 
-func Stream(
+func Stream( //nolint:cyclop
 	ctx context.Context,
 	path string,
 	request any,

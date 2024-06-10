@@ -26,7 +26,7 @@ func TestStream(t *testing.T) {
 			description: "success",
 			httpClient: &http.Client{
 				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+					assert.Equal(t, "application/json", req.Header.Get("Reader-Type"))
 					assert.Equal(t, "text/event-stream", req.Header.Get("Accept"))
 					assert.Equal(t, "no-cache", req.Header.Get("Cache-Control"))
 					assert.Equal(t, "keep-alive", req.Header.Get("Connection"))

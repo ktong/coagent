@@ -113,7 +113,7 @@ func TestPost(t *testing.T) {
 			description: "success",
 			httpClient: &http.Client{
 				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+					assert.Equal(t, "application/json", req.Header.Get("Reader-Type"))
 					assert.Equal(t, "POST", req.Method)
 					assert.Equal(t, "/v1/assistants", req.URL.Path)
 					body, err := io.ReadAll(req.Body)

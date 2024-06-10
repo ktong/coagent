@@ -4,13 +4,11 @@
 package assistant
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
+	"io"
 
-	embedded2 "github.com/ktong/assistant/internal/embedded"
+	"github.com/ktong/assistant/internal/embedded"
 )
 
 const (
@@ -22,119 +20,95 @@ const (
 	RoleAssistant Role = "assistant"
 )
 
-type (
-	// Message created by an assistant or a user.
-	Message struct {
-		// Role of the entity that is creating the message.
-		Role Role
-		// Content parts with a defined type, each can be of type text or images.
-		// Image types are only supported on Vision-compatible models.
-		Content []Content
-		// Tools that are for files attached to the message for specific tools.
-		// It only applies to the built-in tools like code_interpreter and file_search.
-		Tools []BuiltInTool
-	}
-
-	Role    string
-	Content interface {
-		embedded2.Content
-	}
-)
-
-func (m Message) MarshalJSON() ([]byte, error) {
-	type Attachment struct {
-		FileID string           `json:"file_id"`
-		Tools  []embedded2.Tool `json:"tools"`
-	}
-	var attachments []*Attachment
-	appendFiles := func(tool embedded2.Tool, files []File) {
-	fileLoop:
-		for _, file := range files {
-			for _, attachment := range attachments {
-				if attachment.FileID == file.ID {
-					attachment.Tools = append(attachment.Tools, tool)
-
-					continue fileLoop
-				}
-			}
-			attachments = append(attachments, &Attachment{FileID: file.ID, Tools: []embedded2.Tool{tool}})
-		}
-	}
-	for _, tool := range m.Tools {
-		if codeInterpreter, ok := tool.(CodeInterpreter); ok {
-			appendFiles(codeInterpreter, codeInterpreter.Files)
-		}
-	}
-
-	return json.Marshal(map[string]any{ //nolint:wrapcheck
-		"role":        m.Role,
-		"content":     m.Content,
-		"attachments": attachments,
-	})
-}
-
-// Text content that is part of a message.
-type Text struct {
-	embedded2.Content
-
-	// Text content to be sent to the model.
-	Text string
-}
-
-func (t Text) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`{"type":"text","text":"%s"}`, t.Text)), nil
-}
-
 const (
 	DetailAuto Detail = "auto"
-	DetailLow  Detail = "low"
 	DetailHigh Detail = "high"
+	DetailLow  Detail = "low"
 )
 
 type (
-	// Image is a references an image File or URL in the content of a message.
-	Image[F string | []byte] struct {
-		embedded2.Content
+	Message struct {
+		ID          string
+		Role        Role
+		Content     []Content
+		Attachments []Attachment
+	}
+	Role    string
+	Content interface {
+		embedded.Content
+	}
 
-		// URL to the File ID or external URL of the image in the message content.
-		// Set purpose="vision" when uploading the File if you need to later display the file content.
+	// Text content that is part of a message.
+	Text struct {
+		embedded.Content
+
+		Text string
+	}
+
+	// Image is a references an image File or URL in the content of a message.
+	// It's only supported on Vision-compatible models.
+	Image[F string | []byte] struct {
+		embedded.Content
+
 		URL F
 		// Detail specifies the detail level of the image.
 		Detail Detail
 	}
-
 	Detail string
+
+	// Attachment is a file attached to the message, and the tools they were added to.
+	Attachment struct {
+		embedded.Content
+
+		// The file to attach to the message.
+		File File
+		// The tools to add this file to.
+		For []Tool
+	}
+	// File is used to upload documents that can be used with tools.
+	File struct {
+		ID     string
+		Name   string
+		Reader io.Reader
+	}
 )
 
-func (i Image[F]) MarshalJSON() ([]byte, error) {
-	const (
-		fileFormat = `{"type":"image_file","image_file":{"file_id":"%s","detail":"%s"}}`
-		urlFormat  = `{"type":"image_url","image_url":{"url":"%s","detail":"%s"}}`
-	)
-
-	if data, ok := any(i.URL).([]byte); ok {
-		mime := http.DetectContentType(data)
-		switch mime {
-		case "image/gif", "image/jpeg", "image/pjpeg":
-			maxEncLen := base64.StdEncoding.EncodedLen(len(data))
-			buf := make([]byte, maxEncLen) //nolint:makezero
-			base64.StdEncoding.Encode(buf, data)
-			u := fmt.Sprintf("Data:%s;base64,%s", mime, buf)
-
-			return []byte(fmt.Sprintf(urlFormat, u, i.Detail)), nil
-		default:
-			return nil, fmt.Errorf("unsupported image type: %s", mime) //nolint:err113
-		}
-	}
-
-	parsedURL, err := url.Parse(string(i.URL))
-	if err != nil {
-		return nil, fmt.Errorf("parse image URL: %w", err)
-	}
-	switch parsedURL.Scheme {
-	case "", "file":
-		return []byte(fmt.Sprintf(fileFormat, parsedURL.Path, i.Detail)), nil
+func toMessage[T any](s T) (Message, error) { //nolint:ireturn
+	var content Content
+	// TODO: cover more cases
+	switch value := any(s).(type) {
+	case Content:
+		content = value
+	case string:
+		content = Text{Text: value}
 	default:
-		return []byte(fmt.Sprintf(urlFormat, i.URL, i.Detail)), nil
+		jsonBytes, err := json.Marshal(value)
+		if err != nil {
+			return Message{}, fmt.Errorf("marshal as text content: %w", err)
+		}
+
+		content = Text{Text: string(jsonBytes)}
+	}
+
+	return Message{Role: RoleUser, Content: []Content{content}}, nil
+}
+
+func fromMessage[T any](c Message) (T, error) { //nolint:ireturn
+	// TODO: cover more cases
+	switch content := c.Content[0].(type) {
+	case Text:
+		text := new(T)
+		switch value := any(text).(type) {
+		case *string:
+			*value = content.Text
+		default:
+			if err := json.Unmarshal([]byte(content.Text), text); err != nil {
+				return *new(T), fmt.Errorf("unmarshal text content: %w", err)
+			}
+		}
+
+		return *text, nil
+	default:
+		return *new(T), fmt.Errorf("unsupported content type: %T", content) //nolint:err113
 	}
 }

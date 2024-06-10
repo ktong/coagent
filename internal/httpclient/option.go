@@ -49,12 +49,13 @@ func apply(opts []Option) options {
 	return option
 }
 
-var defaultClient = &http.Client{
-	Timeout: 5 * time.Second, //nolint:mnd
+const timeout = 5 * time.Second
+
+var defaultClient = &http.Client{ //nolint:gochecknoglobals
 	Transport: &http.Transport{
-		DialContext:           (&net.Dialer{Timeout: time.Second}).DialContext,
-		TLSHandshakeTimeout:   time.Second,
-		ResponseHeaderTimeout: time.Second,
+		DialContext:           (&net.Dialer{Timeout: timeout}).DialContext,
+		TLSHandshakeTimeout:   timeout,
+		ResponseHeaderTimeout: timeout,
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100, //nolint:mnd
 		MaxIdleConnsPerHost:   100, //nolint:mnd
