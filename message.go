@@ -28,7 +28,6 @@ const (
 
 type (
 	Message struct {
-		ID      string
 		Role    Role
 		Content []Content
 		Tools   []Tool
@@ -63,6 +62,10 @@ type (
 		Reader io.Reader
 	}
 )
+
+func TextMessage(text string, tools ...Tool) Message {
+	return Message{Role: RoleUser, Content: []Content{Text{Text: text}}, Tools: tools}
+}
 
 func toMessage[T any](s T) (Message, error) {
 	var content Content

@@ -31,21 +31,19 @@ func TestAssistant_Run(t *testing.T) {
 	}()
 
 	var thread assistant.Thread
-	thread.AppendText("What's the weather in San Francisco today and the likelihood it'll rain?")
-	message, err := asst.Run(ctx, &thread)
+	err := asst.Run(ctx, &thread, assistant.TextMessage("What's the weather in San Francisco today and the likelihood it'll rain?"))
 	assert.NoError(t, err)
 	assert.True(t, thread.ID != "")
 	assert.Equal(t,
 		"The current temperature in San Francisco, CA is 72°F. The likelihood of rain today is 20%.",
-		message.Content[0].(assistant.Text).Text,
+		thread.Messages[len(thread.Messages)-1].Content[0].(assistant.Text).Text,
 	)
 
-	thread.AppendText("What's the weather in New York City?")
-	message, err = asst.Run(ctx, &thread)
+	err = asst.Run(ctx, &thread, assistant.TextMessage("What's the weather in New York City?"))
 	assert.NoError(t, err)
 	assert.Equal(t,
 		"The current temperature in New York City, NY is 72°F. The likelihood of rain today is 20%.",
-		message.Content[0].(assistant.Text).Text,
+		thread.Messages[len(thread.Messages)-1].Content[0].(assistant.Text).Text,
 	)
 }
 

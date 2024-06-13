@@ -19,30 +19,5 @@ type Thread struct {
 	ID       string
 	Messages []Message
 	Tools    []Tool
-}
-
-// Following are the helpers to append messages to the thread.
-
-func (t *Thread) AppendText(texts ...string) {
-	message := Message{Role: RoleUser}
-	for _, text := range texts {
-		message.Content = append(message.Content, Text{Text: text})
-	}
-	t.Messages = append(t.Messages, message)
-}
-
-func (t *Thread) AppendImage(detail Detail, images ...string) {
-	message := Message{Role: RoleUser}
-	for _, image := range images {
-		message.Content = append(message.Content, Image[string]{URL: image, Detail: detail})
-	}
-	t.Messages = append(t.Messages, message)
-}
-
-func (t *Thread) AppendImageContent(detail Detail, images ...[]byte) {
-	message := Message{Role: RoleUser}
-	for _, image := range images {
-		message.Content = append(message.Content, Image[[]byte]{URL: image, Detail: detail})
-	}
-	t.Messages = append(t.Messages, message)
+	Metadata map[string]any
 }

@@ -25,6 +25,7 @@ type Assistant struct {
 	Model        string
 	Instructions string
 	Tools        []Tool
+	Metadata     map[string]any
 
 	// It provides a different Executor than the default one set by SetDefaultExecutor.
 	Executor Executor
@@ -40,13 +41,12 @@ type Assistant struct {
 //
 // The options passed to Run will override the options on the assistant,
 // but not sub assistants (as tools) of the assistant.
-func (a *Assistant) Run(ctx context.Context, thread *Thread, opts ...Option) (Message, error) {
-	message, err := a.executor().Run(ctx, a, thread, append(a.Options, opts...))
-	if err != nil {
-		return Message{}, fmt.Errorf("run assistant with executor: %w", err)
+func (a *Assistant) Run(ctx context.Context, thread *Thread, message Message, opts ...Option) error {
+	if err := a.executor().Run(ctx, a, thread, message, append(a.Options, opts...)); err != nil {
+		return fmt.Errorf("run assistant with executor: %w", err)
 	}
 
-	return message, nil
+	return nil
 }
 
 func (a *Assistant) Shutdown(ctx context.Context) error {

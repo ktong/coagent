@@ -21,6 +21,7 @@ func (c Client) CreateAssistant(ctx context.Context, asst *assistant.Assistant) 
 		Instructions  string         `json:"instructions,omitempty"`
 		Tools         []tool         `json:"tools,omitempty"`
 		ToolResources map[string]any `json:"tool_resources,omitempty"`
+		Metadata      map[string]any `json:"metadata,omitempty"`
 	}{
 		Name:          asst.Name,
 		Description:   asst.Description,
@@ -28,6 +29,7 @@ func (c Client) CreateAssistant(ctx context.Context, asst *assistant.Assistant) 
 		Instructions:  asst.Instructions,
 		Tools:         make([]tool, 0, len(asst.Tools)),
 		ToolResources: toToolResources(asst.Tools),
+		Metadata:      asst.Metadata,
 	}
 	if subject.Model == "" {
 		subject.Model = "gpt-4o"
@@ -77,6 +79,8 @@ func (c Client) DeleteAssistant(ctx context.Context, asst *assistant.Assistant) 
 		}
 	}
 	asst.ID = ""
+
+	// TODO: delete files and vector stores in tools
 
 	return nil
 }

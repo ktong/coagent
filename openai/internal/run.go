@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	"github.com/ktong/assistant"
 	"github.com/ktong/assistant/openai/httpclient"
@@ -28,7 +29,7 @@ func (c Client) Run(
 	asst *assistant.Assistant,
 	thread *assistant.Thread,
 	opts []assistant.Option,
-) (assistant.Message, error) {
+) error {
 	run := &run{
 		AssistantID: asst.ID,
 		Stream:      true,
@@ -66,14 +67,13 @@ func (c Client) Run(
 type (
 	callable interface {
 		ID() string
-		Call(ctx context.Context, threadID string, argument string) (assistant.Message, error)
+		Call(ctx context.Context, thread *assistant.Thread, argument string) (assistant.Message, error)
 	}
 	eventHandler struct {
 		client    Client
 		thread    *assistant.Thread
 		functions map[string]callable
 		stream    chan func() error
-		message   assistant.Message
 	}
 )
 
@@ -112,13 +112,23 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 			Stream:      true,
 		}
 
-		// TODO: load thread IDs from metadata
-		var threadIDs map[string]string
+		subThreadIDs, _ := h.thread.Metadata[keySubThreadIDs].(map[string]string)
+		latestSubThreadID := make(map[string]string)
+		defer func() {
+			if !maps.Equal(subThreadIDs, latestSubThreadID) {
+				// Ignore error: best effort to update metadata.
+				// If failed, the next run will update the metadata.
+				_ = h.client.UpdateThreadMetadata(ctx, h.thread.ID, h.thread.Metadata)
+			}
+		}()
+
 		for _, call := range action.RequiredAction.SubmitToolOutputs.ToolCalls {
 			if call.Type == "function" {
 				if function := h.functions[call.Function.Name]; function != nil {
+					subThread := &assistant.Thread{ID: subThreadIDs[call.Function.Name]}
+
 					var text string
-					result, err := function.Call(ctx, threadIDs[call.Function.Name], call.Function.Arguments)
+					result, err := function.Call(ctx, subThread, call.Function.Arguments)
 					if err != nil {
 						text = fmt.Sprintf(`{"error": "%s"}`, err)
 					} else {
@@ -135,6 +145,10 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 						ToolCallID: call.ID,
 						Output:     text,
 					})
+
+					if subThread.ID != "" {
+						latestSubThreadID[call.Function.Name] = subThread.ID
+					}
 				}
 			}
 		}
@@ -176,19 +190,19 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 
 		switch msg.Status {
 		case "completed":
-			h.message = assistant.Message{
-				ID:   msg.ID,
+			newMessage := assistant.Message{
 				Role: assistant.Role(msg.Role),
 			}
 			for _, content := range msg.Content {
 				switch content.Type {
 				case "text":
-					h.message.Content = append(h.message.Content, assistant.Text{
+					newMessage.Content = append(newMessage.Content, assistant.Text{
 						Text: content.Text.Value,
 					})
 					// TODO: Handle annotations
 				}
 			}
+			h.thread.Messages = append(h.thread.Messages, newMessage)
 		case "incomplete":
 			return fmt.Errorf("message incomplete: %s", msg.IncompleteDetails.Reason)
 		}
@@ -197,15 +211,15 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 	return nil
 }
 
-func (h *eventHandler) run() (assistant.Message, error) {
+func (h *eventHandler) run() error {
 	for {
 		select {
 		case f := <-h.stream:
 			if err := f(); err != nil {
-				return assistant.Message{}, err
+				return err
 			}
 		default:
-			return h.message, nil
+			return nil
 		}
 	}
 }

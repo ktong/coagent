@@ -5,6 +5,7 @@ package openai
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ktong/assistant"
 	"github.com/ktong/assistant/openai/internal"
@@ -24,27 +25,33 @@ func (e Executor) Run(
 	ctx context.Context,
 	asst *assistant.Assistant,
 	thread *assistant.Thread,
+	message assistant.Message,
 	opts []assistant.Option,
-) (assistant.Message, error) {
+) error {
 	if asst.ID == "" {
 		//TODO: Fixing race condition since assistant can be created by another goroutine.
 		if err := e.client.CreateAssistant(ctx, asst); err != nil {
-			return assistant.Message{}, err
+			return err
 		}
 	}
 
 	if thread.ID == "" {
 		if err := e.client.CreateThread(ctx, thread); err != nil {
-			return assistant.Message{}, err
+			return err
 		}
 	} else {
-		// TODO: Check if thread is running by other goroutine.
-		for i := range thread.Messages {
-			if err := e.client.CreateMessage(ctx, thread.ID, &thread.Messages[i]); err != nil {
-				return assistant.Message{}, err
-			}
+		metadata, err := e.client.GetThreadMetadata(ctx, thread.ID)
+		if err != nil {
+			return fmt.Errorf("get existing thread[%s]: %w", thread.ID, err)
 		}
+		// Load thread metadata from server.
+		thread.Metadata = metadata
 	}
+
+	if err := e.client.CreateMessage(ctx, thread.ID, &message); err != nil {
+		return err
+	}
+	thread.Messages = append(thread.Messages, message)
 
 	return e.client.Run(ctx, asst, thread, opts)
 }
