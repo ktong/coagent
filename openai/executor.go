@@ -5,57 +5,50 @@ package openai
 
 import (
 	"context"
-	"os"
 
 	"github.com/ktong/assistant"
-	"github.com/ktong/assistant/internal/httpclient"
+	"github.com/ktong/assistant/openai/internal"
 )
 
 var _ assistant.Executor = (*Executor)(nil)
 
 type Executor struct {
-	clientOptions []httpclient.Option
+	client internal.Client
 }
 
-func NewExecutor(opts ...httpclient.Option) Executor {
-	return Executor{clientOptions: append([]httpclient.Option{
-		httpclient.WithBaseURL("https://api.openai.com/v1"),
-		httpclient.WithHeader("Authorization", "Bearer "+os.Getenv("OPENAI_API_KEY")),
-		httpclient.WithHeader("OpenAI-Beta", "assistants=v2"),
-	}, opts...)}
+func NewExecutor(opts ...Option) Executor {
+	return Executor{client: internal.NewClient(opts...)}
 }
 
 func (e Executor) Run(
 	ctx context.Context,
-	assistant *assistant.Assistant,
+	asst *assistant.Assistant,
 	thread *assistant.Thread,
-	messages []assistant.Message,
 	opts []assistant.Option,
-) error {
-	if assistant.ID == "" {
+) (assistant.Message, error) {
+	if asst.ID == "" {
 		//TODO: Fixing race condition since assistant can be created by another goroutine.
-		if err := e.createAssistant(ctx, assistant); err != nil {
-			return err
+		if err := e.client.CreateAssistant(ctx, asst); err != nil {
+			return assistant.Message{}, err
 		}
 	}
 
-	thread.Messages = append(thread.Messages, messages...)
 	if thread.ID == "" {
-		if err := e.createThread(ctx, thread); err != nil {
-			return err
+		if err := e.client.CreateThread(ctx, thread); err != nil {
+			return assistant.Message{}, err
 		}
 	} else {
 		// TODO: Check if thread is running by other goroutine.
-		for i := range messages {
-			if err := e.createMessage(ctx, thread.ID, &messages[i]); err != nil {
-				return err
+		for i := range thread.Messages {
+			if err := e.client.CreateMessage(ctx, thread.ID, &thread.Messages[i]); err != nil {
+				return assistant.Message{}, err
 			}
 		}
 	}
 
-	return e.run(ctx, assistant, thread, opts)
+	return e.client.Run(ctx, asst, thread, opts)
 }
 
 func (e Executor) ShutdownAssistant(ctx context.Context, assistant *assistant.Assistant) error {
-	return e.deleteAssistant(ctx, assistant)
+	return e.client.DeleteAssistant(ctx, assistant)
 }

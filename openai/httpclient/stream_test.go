@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/ktong/assistant/internal/assert"
-	"github.com/ktong/assistant/internal/httpclient"
+	"github.com/ktong/assistant/openai/httpclient"
 )
 
 func TestStream(t *testing.T) {

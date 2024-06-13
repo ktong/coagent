@@ -1,7 +1,7 @@
 // Copyright (c) 2024 the authors
 // Use of this source code is governed by a MIT license found in the LICENSE file.
 
-package openai
+package internal
 
 import (
 	"github.com/ktong/assistant"
@@ -36,44 +36,4 @@ type VectorStore struct {
 	ID    string
 	Name  string
 	Files []assistant.File
-}
-
-func toTools(tools []assistant.Tool) []tool {
-	toolsList := make([]tool, 0, len(tools))
-	for _, t := range tools {
-		switch t.(type) {
-		case CodeInterpreter:
-			toolsList = append(toolsList, tool{Type: "code_interpreter"})
-		case FileSearch:
-			toolsList = append(toolsList, tool{Type: "file_search"})
-		}
-	}
-
-	return toolsList
-}
-
-func toToolResources(tools []assistant.Tool) map[string]any {
-	resources := map[string]any{}
-	for _, t := range tools {
-		switch tool := t.(type) {
-		case CodeInterpreter:
-			fileIDs := make([]string, 0, len(tool.Files))
-			for _, file := range tool.Files {
-				fileIDs = append(fileIDs, file.ID)
-			}
-			resources["code_interpreter"] = map[string][]string{"file_ids": fileIDs}
-		case FileSearch:
-			if tool.Store.ID != "" {
-				resources["file_search"] = map[string][]string{"vector_store_ids": {tool.Store.ID}}
-			} else {
-				fileIDs := make([]string, 0, len(tool.Store.Files))
-				for _, file := range tool.Store.Files {
-					fileIDs = append(fileIDs, file.ID)
-				}
-				resources["file_search"] = map[string]map[string][]string{"vector_stores": {"file_ids": fileIDs}}
-			}
-		}
-	}
-
-	return resources
 }

@@ -5,87 +5,29 @@
 package openai
 
 import (
-	"github.com/ktong/assistant"
-	"github.com/ktong/assistant/internal/embedded"
+	"github.com/ktong/assistant/openai/httpclient"
+	"github.com/ktong/assistant/openai/internal"
 )
-
-func WithModel(model string) assistant.Option {
-	return funcOption{
-		fn: func(r *run) {
-			r.Model = model
-		},
-	}
-}
-
-func WithInstructions(instructions string) assistant.Option {
-	return funcOption{
-		fn: func(r *run) {
-			r.Instructions = instructions
-		},
-	}
-}
-
-func WithTemperature(temperature float32) assistant.Option {
-	return funcOption{
-		fn: func(r *run) {
-			r.Temperature = temperature
-		},
-	}
-}
-
-func WithTools(tools ...assistant.Tool) assistant.Option {
-	return funcOption{
-		fn: func(r *run) {
-			// TODO: what if tools has files?
-			r.Tools = append(r.Tools, toTools(tools)...)
-		},
-	}
-}
-
-func WithMaxPromptTokens(maxPromptTokens int) assistant.Option {
-	return funcOption{
-		fn: func(r *run) {
-			r.MaxPromptTokens = maxPromptTokens
-		},
-	}
-}
-
-func WithMaxCompletionTokens(maxCompletionTokens int) assistant.Option {
-	return funcOption{
-		fn: func(r *run) {
-			r.MaxCompletionTokens = maxCompletionTokens
-		},
-	}
-}
-
-func WithParallelToolCallS(parallelToolCallS bool) assistant.Option {
-	return funcOption{
-		fn: func(r *run) {
-			r.ParallelToolCallS = parallelToolCallS
-		},
-	}
-}
 
 type (
-	run struct {
-		AssistantID         string  `json:"assistant_id"`
-		Stream              bool    `json:"stream"`
-		Model               string  `json:"model,omitempty"`
-		Instructions        string  `json:"instructions,omitempty"`
-		Tools               []tool  `json:"tools,omitempty"`
-		Temperature         float32 `json:"temperature"`
-		MaxPromptTokens     int     `json:"max_prompt_tokens,omitempty"`
-		MaxCompletionTokens int     `json:"max_completion_tokens,omitempty"`
-		ParallelToolCallS   bool    `json:"parallel_tool_calls"`
-	}
+	Option          = httpclient.Option
+	CodeInterpreter = internal.CodeInterpreter
+	FileSearch      = internal.FileSearch
 )
 
-type funcOption struct {
-	embedded.Option
+//nolint:gochecknoglobals
+var (
+	WithHTTPClient = httpclient.WithHTTPClient
+	WithBaseURL    = httpclient.WithBaseURL
+	WithHeader     = httpclient.WithHeader
+)
 
-	fn func(*run)
-}
-
-func (f funcOption) Apply(r *run) {
-	f.fn(r)
-}
+//nolint:gochecknoglobals
+var (
+	WithModel               = internal.WithModel
+	WithInstructions        = internal.WithInstructions
+	WithTemperature         = internal.WithTemperature
+	WithMaxPromptTokens     = internal.WithMaxPromptTokens
+	WithMaxCompletionTokens = internal.WithMaxCompletionTokens
+	WithParallelToolCallS   = internal.WithParallelToolCallS
+)

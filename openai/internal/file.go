@@ -1,7 +1,7 @@
 // Copyright (c) 2024 the authors
 // Use of this source code is governed by a MIT license found in the LICENSE file.
 
-package openai
+package internal
 
 import (
 	"bytes"
@@ -11,10 +11,10 @@ import (
 	"mime/multipart"
 
 	"github.com/ktong/assistant"
-	"github.com/ktong/assistant/internal/httpclient"
+	"github.com/ktong/assistant/openai/httpclient"
 )
 
-func (e Executor) uploadFile(ctx context.Context, file *assistant.File) error {
+func (c Client) UploadFile(ctx context.Context, file *assistant.File) error {
 	buf, contextYType, err := createMultiPartForm(file)
 	if err != nil {
 		return fmt.Errorf("create multipart form: %w", err)
@@ -24,7 +24,7 @@ func (e Executor) uploadFile(ctx context.Context, file *assistant.File) error {
 		ID string `json:"id"`
 	}
 	resp, err := httpclient.Post[id](ctx, "/files", buf,
-		append(e.clientOptions, httpclient.WithHeader("Reader-Type", contextYType))...,
+		append(c, httpclient.WithHeader("Reader-Type", contextYType))...,
 	)
 	if err != nil {
 		return fmt.Errorf("upload file: %w", err)
@@ -55,8 +55,8 @@ func createMultiPartForm(file *assistant.File) (*bytes.Buffer, string, error) {
 	return buf, writer.FormDataContentType(), nil
 }
 
-func (e Executor) downloadFile(ctx context.Context, file *assistant.File) error {
-	reader, err := httpclient.Get[[]byte](ctx, "/files/"+file.ID+"/content", e.clientOptions...)
+func (c Client) DownloadFile(ctx context.Context, file *assistant.File) error {
+	reader, err := httpclient.Get[[]byte](ctx, "/files/"+file.ID+"/content", c...)
 	if err != nil {
 		return fmt.Errorf("download file: %w", err)
 	}

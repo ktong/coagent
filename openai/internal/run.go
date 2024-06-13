@@ -1,7 +1,7 @@
 // Copyright (c) 2024 the authors
 // Use of this source code is governed by a MIT license found in the LICENSE file.
 
-package openai
+package internal
 
 import (
 	"context"
@@ -9,15 +9,26 @@ import (
 	"fmt"
 
 	"github.com/ktong/assistant"
-	"github.com/ktong/assistant/internal/httpclient"
+	"github.com/ktong/assistant/openai/httpclient"
 )
 
-func (e Executor) run(
+type run struct {
+	AssistantID         string  `json:"assistant_id"`
+	Stream              bool    `json:"stream"`
+	Model               string  `json:"model,omitempty"`
+	Instructions        string  `json:"instructions,omitempty"`
+	Temperature         float32 `json:"temperature"`
+	MaxPromptTokens     int     `json:"max_prompt_tokens,omitempty"`
+	MaxCompletionTokens int     `json:"max_completion_tokens,omitempty"`
+	ParallelToolCallS   bool    `json:"parallel_tool_calls"`
+}
+
+func (c Client) Run(
 	ctx context.Context,
 	asst *assistant.Assistant,
 	thread *assistant.Thread,
 	opts []assistant.Option,
-) error {
+) (assistant.Message, error) {
 	run := &run{
 		AssistantID: asst.ID,
 		Stream:      true,
@@ -32,10 +43,9 @@ func (e Executor) run(
 			o.Apply(run)
 		}
 	}
-	// TODO: Add tools to run from assistant
 
 	handler := eventHandler{
-		executor:  e,
+		client:    c,
 		thread:    thread,
 		stream:    make(chan func() error, 1),
 		functions: make(map[string]callable),
@@ -47,7 +57,7 @@ func (e Executor) run(
 	}
 
 	handler.stream <- func() error {
-		return httpclient.Stream(ctx, "/threads/"+thread.ID+"/runs", run, handler.handle, e.clientOptions...)
+		return httpclient.Stream(ctx, "/threads/"+thread.ID+"/runs", run, handler.handle, c...)
 	}
 
 	return handler.run()
@@ -56,13 +66,14 @@ func (e Executor) run(
 type (
 	callable interface {
 		ID() string
-		Call(ctx context.Context, argument string) (assistant.Message, error)
+		Call(ctx context.Context, threadID string, argument string) (assistant.Message, error)
 	}
 	eventHandler struct {
-		executor  Executor
+		client    Client
 		thread    *assistant.Thread
 		functions map[string]callable
 		stream    chan func() error
+		message   assistant.Message
 	}
 )
 
@@ -101,11 +112,13 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 			Stream:      true,
 		}
 
+		// TODO: load thread IDs from metadata
+		var threadIDs map[string]string
 		for _, call := range action.RequiredAction.SubmitToolOutputs.ToolCalls {
 			if call.Type == "function" {
 				if function := h.functions[call.Function.Name]; function != nil {
 					var text string
-					result, err := function.Call(ctx, call.Function.Arguments)
+					result, err := function.Call(ctx, threadIDs[call.Function.Name], call.Function.Arguments)
 					if err != nil {
 						text = fmt.Sprintf(`{"error": "%s"}`, err)
 					} else {
@@ -129,7 +142,7 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 		h.stream <- func() error {
 			return httpclient.Stream(ctx,
 				"/threads/"+action.ThreadID+"/runs/"+action.ID+"/submit_tool_outputs",
-				outputs, h.handle, h.executor.clientOptions...,
+				outputs, h.handle, h.client...,
 			)
 		}
 	case "thread.message.completed", "thread.message.incomplete":
@@ -163,20 +176,19 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 
 		switch msg.Status {
 		case "completed":
-			newMessage := assistant.Message{
+			h.message = assistant.Message{
 				ID:   msg.ID,
 				Role: assistant.Role(msg.Role),
 			}
 			for _, content := range msg.Content {
 				switch content.Type {
 				case "text":
-					newMessage.Content = append(newMessage.Content, assistant.Text{
+					h.message.Content = append(h.message.Content, assistant.Text{
 						Text: content.Text.Value,
 					})
 					// TODO: Handle annotations
 				}
 			}
-			h.thread.Messages = append(h.thread.Messages, newMessage)
 		case "incomplete":
 			return fmt.Errorf("message incomplete: %s", msg.IncompleteDetails.Reason)
 		}
@@ -185,15 +197,15 @@ func (h *eventHandler) handle(ctx context.Context, event httpclient.Event) error
 	return nil
 }
 
-func (h *eventHandler) run() error {
+func (h *eventHandler) run() (assistant.Message, error) {
 	for {
 		select {
 		case f := <-h.stream:
 			if err := f(); err != nil {
-				return err
+				return assistant.Message{}, err
 			}
 		default:
-			return nil
+			return h.message, nil
 		}
 	}
 }

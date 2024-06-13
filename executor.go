@@ -9,7 +9,7 @@ import (
 )
 
 type Executor interface {
-	Run(ctx context.Context, assistant *Assistant, thread *Thread, messages []Message, opts []Option) error
+	Run(ctx context.Context, assistant *Assistant, thread *Thread, opts []Option) (Message, error)
 	ShutdownAssistant(ctx context.Context, assistant *Assistant) error
 }
 

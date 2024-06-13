@@ -28,10 +28,10 @@ const (
 
 type (
 	Message struct {
-		ID          string
-		Role        Role
-		Content     []Content
-		Attachments []Attachment
+		ID      string
+		Role    Role
+		Content []Content
+		Tools   []Tool
 	}
 	Role    string
 	Content interface {
@@ -56,15 +56,6 @@ type (
 	}
 	Detail string
 
-	// Attachment is a file attached to the message, and the tools they were added to.
-	Attachment struct {
-		embedded.Content
-
-		// The file to attach to the message.
-		File File
-		// The tools to add this file to.
-		For []Tool
-	}
 	// File is used to upload documents that can be used with tools.
 	File struct {
 		ID     string
@@ -73,7 +64,7 @@ type (
 	}
 )
 
-func toMessage[T any](s T) (Message, error) { //nolint:ireturn
+func toMessage[T any](s T) (Message, error) {
 	var content Content
 	// TODO: cover more cases
 	switch value := any(s).(type) {
