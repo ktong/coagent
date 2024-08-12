@@ -7,6 +7,7 @@ package assistant_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/ktong/assistant"
@@ -34,17 +35,17 @@ func TestAssistant_Run(t *testing.T) {
 	err := asst.Run(ctx, &thread, assistant.TextMessage("What's the weather in San Francisco today and the likelihood it'll rain?"))
 	assert.NoError(t, err)
 	assert.True(t, thread.ID != "")
-	assert.Equal(t,
-		"The current temperature in San Francisco, CA is 72°F. The likelihood of rain today is 20%.",
-		thread.Messages[len(thread.Messages)-1].Content[0].(assistant.Text).Text,
-	)
+	text := thread.Messages[len(thread.Messages)-1].Content[0].(assistant.Text).Text
+	assert.True(t, strings.Contains(text, "San Francisco"))
+	assert.True(t, strings.Contains(text, "72°F"))
+	assert.True(t, strings.Contains(text, "20% chance of rain"))
 
-	err = asst.Run(ctx, &thread, assistant.TextMessage("What's the weather in New York City?"))
+	err = asst.Run(ctx, &thread, assistant.TextMessage("What's the weather in New York?"))
 	assert.NoError(t, err)
-	assert.Equal(t,
-		"The current temperature in New York City, NY is 72°F. The likelihood of rain today is 20%.",
-		thread.Messages[len(thread.Messages)-1].Content[0].(assistant.Text).Text,
-	)
+	text = thread.Messages[len(thread.Messages)-1].Content[0].(assistant.Text).Text
+	assert.True(t, strings.Contains(text, "New York"))
+	assert.True(t, strings.Contains(text, "72°F"))
+	assert.True(t, strings.Contains(text, "20% chance of rain"))
 }
 
 type (

@@ -32,7 +32,7 @@ func (c Client) CreateAssistant(ctx context.Context, asst *assistant.Assistant) 
 		Metadata:      asst.Metadata,
 	}
 	if subject.Model == "" {
-		subject.Model = "gpt-4o"
+		subject.Model = "gpt-4o-mini"
 	}
 	for _, t := range asst.Tools {
 		switch t.(type) {
