@@ -62,5 +62,6 @@ func (a *Assistant) executor() Executor { //nolint:ireturn
 		return a.Executor
 	}
 
+	// TODO: what if the defaultExecutor is nil?
 	return *defaultExecutor.Load()
 }

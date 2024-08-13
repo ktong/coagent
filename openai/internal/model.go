@@ -15,9 +15,10 @@ import (
 
 type (
 	function struct {
-		Name        string         `json:"name"`
-		Description string         `json:"description,omitempty"`
-		Parameters  *schema.Schema `json:"parameters,omitempty"`
+		Name        string        `json:"name"`
+		Description string        `json:"description,omitempty"`
+		Parameters  schema.Schema `json:"parameters,omitempty"`
+		Strict      bool          `json:"strict,omitempty"`
 	}
 	tool struct {
 		Type     string    `json:"type"`

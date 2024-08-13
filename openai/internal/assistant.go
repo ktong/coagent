@@ -51,6 +51,7 @@ func (c Client) CreateAssistant(ctx context.Context, asst *assistant.Assistant) 
 						Name:        schema.Name,
 						Description: schema.Description,
 						Parameters:  schema.Parameter,
+						Strict:      true,
 					}},
 				)
 			}

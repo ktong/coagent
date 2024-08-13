@@ -6,13 +6,7 @@ package schema_test
 import (
 	"bytes"
 	"encoding/json"
-	"math/bits"
-	"net"
-	"net/netip"
-	"net/url"
-	"strconv"
 	"testing"
-	"time"
 
 	"github.com/ktong/assistant/internal/assert"
 	"github.com/ktong/assistant/internal/schema"
@@ -29,11 +23,10 @@ type RecursiveChild struct {
 
 type RecursiveChildLoop struct {
 	*RecursiveChild
-	Slice   []*RecursiveChildLoop                    `json:"slice"`
-	Array   [1]*RecursiveChildLoop                   `json:"array"`
-	Map     map[RecursiveChildKey]RecursiveChildLoop `json:"map"`
-	ByValue RecursiveChildKey                        `json:"byValue"`
-	ByRef   *RecursiveChildKey                       `json:"byRef"`
+	Slice   []*RecursiveChildLoop  `json:"slice"`
+	Array   [1]*RecursiveChildLoop `json:"array"`
+	ByValue RecursiveChildKey      `json:"byValue"`
+	ByRef   *RecursiveChildKey     `json:"byRef"`
 }
 
 type EmbeddedChild struct {
@@ -47,11 +40,9 @@ type Embedded struct {
 }
 
 func TestSchema(t *testing.T) { //nolint:maintidx
-	bitSize := strconv.Itoa(bits.UintSize)
-
 	testcases := []struct {
 		name     string
-		input    func() (*schema.Schema, error)
+		input    func() (schema.Schema, error)
 		expected string
 		error    string
 	}{
@@ -68,77 +59,47 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 		{
 			name:     "int",
 			input:    schema.For[int],
-			expected: `{"type": "integer", "format": "int` + bitSize + `"}`,
+			expected: `{"type": "integer"}`,
 		},
 		{
 			name:     "int32",
 			input:    schema.For[int32],
-			expected: `{"type": "integer", "format": "int32"}`,
+			expected: `{"type": "integer"}`,
 		},
 		{
 			name:     "int64",
 			input:    schema.For[int64],
-			expected: `{"type": "integer", "format": "int64"}`,
+			expected: `{"type": "integer"}`,
 		},
 		{
 			name:     "uint",
 			input:    schema.For[uint],
-			expected: `{"type": "integer", "minimum": 0, "format": "int` + bitSize + `"}`,
+			expected: `{"type": "integer"}`,
 		},
 		{
 			name:     "uint32",
 			input:    schema.For[uint32],
-			expected: `{"type": "integer", "minimum": 0, "format": "int32"}`,
+			expected: `{"type": "integer"}`,
 		},
 		{
 			name:     "uint64",
 			input:    schema.For[uint64],
-			expected: `{"type": "integer", "minimum": 0, "format": "int64"}`,
+			expected: `{"type": "integer"}`,
 		},
 		{
 			name:     "float64",
 			input:    schema.For[float64],
-			expected: `{"type": "number", "format": "double"}`,
+			expected: `{"type": "number"}`,
 		},
 		{
 			name:     "float32",
 			input:    schema.For[float32],
-			expected: `{"type": "number", "format": "float"}`,
+			expected: `{"type": "number"}`,
 		},
 		{
 			name:     "string",
 			input:    schema.For[string],
 			expected: `{"type": "string"}`,
-		},
-		{
-			name:     "time",
-			input:    schema.For[time.Time],
-			expected: `{"type": "string", "format": "date-time"}`,
-		},
-		{
-			name:     "time-pointer",
-			input:    schema.For[*time.Time],
-			expected: `{"type": "string", "format": "date-time"}`,
-		},
-		{
-			name:     "url",
-			input:    schema.For[url.URL],
-			expected: `{"type": "string", "format": "uri"}`,
-		},
-		{
-			name:     "ip",
-			input:    schema.For[net.IP],
-			expected: `{"type": "string", "format": "ipv4"}`,
-		},
-		{
-			name:     "ipAddr",
-			input:    schema.For[netip.Addr],
-			expected: `{"type": "string", "format": "ipv4"}`,
-		},
-		{
-			name:     "json.RawMessage",
-			input:    schema.For[*json.RawMessage],
-			expected: `{}`,
 		},
 		{
 			name:     "bytes",
@@ -148,50 +109,22 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 		{
 			name:     "array",
 			input:    schema.For[[2]int],
-			expected: `{"items": {"type": "integer", "format": "int64"}, "type": "array", "maxItems": 2, "minItems": 2}`,
+			expected: `{"items": {"type": "integer"}, "type": "array"}`,
 		},
 		{
 			name:     "slice",
 			input:    schema.For[[]int],
-			expected: `{"items": {"type": "integer", "format": "int64"}, "type": "array"}`,
-		},
-		{
-			name:     "map",
-			input:    schema.For[map[string]string],
-			expected: `{"additionalProperties": {"type": "string"}, "type": "object"}`,
-		},
-		{
-			name: "additionalProps",
-			input: schema.For[struct {
-				_     struct{} `json:"-" additionalProperties:"true"`
-				Value string   `json:"value"`
-			}],
-			expected: `{
-				"properties": {
-					"value": {
-						"type": "string"
-					}
-				},
-				"additionalProperties": true,
-				"type": "object",
-				"required": ["value"]
-			}`,
+			expected: `{"items": {"type": "integer"}, "type": "array"}`,
 		},
 		{
 			name: "field-int",
 			input: schema.For[struct {
-				Value int `json:"value" minimum:"1" exclusiveMinimum:"0" maximum:"10" exclusiveMaximum:"11" multipleOf:"2"`
+				Value int `json:"value"`
 			}],
 			expected: `{
 				"properties": {
 					"value": {
-						"type": "integer",
-						"multipleOf": 2,
-						"maximum": 10,
-						"exclusiveMaximum": 11,
-						"minimum": 1,
-						"exclusiveMinimum": 0,
-						"format": "int64"
+						"type": "integer"
 					}
 				},
 				"additionalProperties": false,
@@ -202,16 +135,12 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 		{
 			name: "field-string",
 			input: schema.For[struct {
-				Value string `json:"value" minLength:"1" maxLength:"10" pattern:"^foo$" format:"foo" encoding:"bar"`
+				Value string `json:"value" encoding:"bar"`
 			}],
 			expected: `{
 				"properties": {
 					"value": {
 						"type": "string",
-						"maxLength": 10,
-						"minLength": 1,
-						"pattern": "^foo$",
-						"format": "foo",
 						"contentEncoding": "bar"
 					}
 				},
@@ -223,37 +152,13 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 		{
 			name: "field-array",
 			input: schema.For[struct {
-				Value []int `json:"value" minItems:"1" maxItems:"10" uniqueItems:"true"`
+				Value []int `json:"value"`
 			}],
 			expected: `{
 				"properties": {
 					"value": {
-						"items": {"type": "integer", "format": "int64"},
-						"type": "array",
-						"maxItems": 10,
-						"minItems": 1,
-						"uniqueItems": true
-					}
-				},
-				"additionalProperties": false,
-				"type": "object",
-				"required": ["value"]
-			}`,
-		},
-		{
-			name: "field-map",
-			input: schema.For[struct {
-				Value map[string]string `json:"value" minProperties:"2" maxProperties:"5"`
-			}],
-			expected: `{
-				"properties": {
-					"value": {
-						"additionalProperties": {
-							"type": "string"
-						},
-						"type": "object",
-						"maxProperties": 5,
-						"minProperties": 2
+						"items": {"type": "integer"},
+						"type": "array"
 					}
 				},
 				"additionalProperties": false,
@@ -288,102 +193,9 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 					"value": {
 						"items": {
 							"type": "integer",
-							"enum": [1, 2, 3, 5, 8, 11],
-							"format": "int64"
+							"enum": [1, 2, 3, 5, 8, 11]
 						},
 						"type": "array"
-					}
-				},
-				"additionalProperties": false,
-				"type": "object",
-				"required": ["value"]
-			}`,
-		},
-		{
-			name: "field-example-string",
-			input: schema.For[struct {
-				Value string `json:"value" example:"foo"`
-			}],
-			expected: `{
-				"properties": {
-					"value": {
-						"type": "string",
-						"examples": ["foo"]
-					}
-				},
-				"additionalProperties": false,
-				"type": "object",
-				"required": ["value"]
-			}`,
-		},
-		{
-			name: "field-example-string-pointer",
-			input: schema.For[struct {
-				Value *string `json:"value,omitempty" example:"foo"`
-			}],
-			expected: `{
-				"properties": {
-					"value": {
-						"type": "string",
-						"examples": ["foo"]
-					}
-				},
-				"additionalProperties": false,
-				"type": "object"
-			}`,
-		},
-		{
-			name: "field-example-array-string",
-			input: schema.For[struct {
-				Value []string `json:"value" example:"foo,bar"`
-			}],
-			expected: `{
-				"properties": {
-					"value": {
-						"items": {
-							"type": "string"
-						},
-						"type": "array",
-						"examples": [["foo", "bar"]]
-					}
-				},
-				"additionalProperties": false,
-				"type": "object",
-				"required": ["value"]
-			}`,
-		},
-		{
-			name: "field-example-array-int",
-			input: schema.For[struct {
-				Value []int `json:"value" example:"[1,2]"`
-			}],
-			expected: `{
-				"properties": {
-					"value": {
-						"items": {
-							"type": "integer",
-							"format": "int64"
-						},
-						"type": "array",
-						"examples": [[1, 2]]
-					}
-				},
-				"additionalProperties": false,
-				"type": "object",
-				"required": ["value"]
-			}`,
-		},
-		{
-			name: "field-example-duration",
-			input: schema.For[struct {
-				Value time.Duration `json:"value" example:"5000"`
-			}],
-			expected: `{
-				"properties": {
-					"value": {
-						"type": "integer",
-						"format": "int64",
-						"examples": [5000]
 					}
 				},
 				"additionalProperties": false,
@@ -399,27 +211,113 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 			expected: `{
 				"properties": {
 					"Value": {
-						"type": "string"
+						"type": ["string","null"]
 					}
 				},
 				"additionalProperties": false,
-				"type": "object"
+				"type": "object",
+				"required":["Value"]
 			}`,
 		},
 		{
 			name: "field-any",
 			input: schema.For[struct {
-				Value any `json:"value" description:"Some value"`
+				Value string `json:"value" description:"Some value"`
 			}],
 			expected: `{
 				"properties": {
 					"value": {
+						"type": "string",
 						"description": "Some value"
 					}
 				},
 				"additionalProperties": false,
 				"type": "object",
 				"required": ["value"]
+			}`,
+		},
+		{
+			name:  "field-ref",
+			input: schema.For[RecursiveChild],
+			expected: `{
+				"$defs":{
+					"schema_test.RecursiveChildKey":{
+						"properties":{
+							"key":{
+								"type":"string"
+							},
+							"self":{
+								"$ref":"#/$defs/schema_test.RecursiveChildKey"
+							}
+						},
+						"additionalProperties":false,
+						"type":"object",
+						"required":["key","self"]
+					},
+					"schema_test.RecursiveChildLoop":{
+						"properties":{
+							"array":{
+								"items":{
+									"$ref":"#/$defs/schema_test.RecursiveChildLoop"
+								},
+								"type":"array"
+							},
+							"byRef":{
+								"$ref":"#/$defs/schema_test.RecursiveChildKey"
+							},
+							"byValue":{
+								"$ref":"#/$defs/schema_test.RecursiveChildKey"
+							},
+							"slice":{
+								"items":{
+									"$ref":"#/$defs/schema_test.RecursiveChildLoop"
+								},
+								"type":"array"
+							}
+						},
+						"additionalProperties":false,
+						"type":"object",
+						"required":["slice","array","byValue","byRef"]
+					}
+				},
+				"properties":{
+					"array":{
+						"items":{
+							"$ref":"#/$defs/schema_test.RecursiveChildLoop"
+						},
+						"type":"array"
+					},
+					"byRef":{
+						"$ref":"#/$defs/schema_test.RecursiveChildKey"
+					},
+					"byValue":{
+						"$ref":"#/$defs/schema_test.RecursiveChildKey"
+					},
+					"slice":{
+						"items":{
+							"$ref":"#/$defs/schema_test.RecursiveChildLoop"
+						},
+						"type":"array"
+					}
+				},
+				"additionalProperties":false,
+				"type":"object",
+				"required":["slice","array","byValue","byRef"]
+			}`,
+		},
+		{
+			name:  "field-self",
+			input: schema.For[RecursiveChildKey],
+			expected: `{
+				"properties":{
+					"key":{
+						"type":"string"
+					},
+					"self":{"$ref":"#"}
+				},
+				"additionalProperties":false,
+				"type":"object",
+				"required":["key","self"]
 			}`,
 		},
 		{
@@ -464,27 +362,9 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 			}`,
 		},
 		{
-			name: "field-pointer-example",
-			input: schema.For[struct {
-				Int *int64  `json:"int" example:"123"`
-				Str *string `json:"str" example:"foo"`
-			}],
-			expected: `{
-				"properties": {
-					"int": {
-						"type": "integer",
-						"format": "int64",
-						"examples": [123]
-					},
-					"str": {
-						"type": "string",
-						"examples": ["foo"]
-					}
-				},
-				"additionalProperties": false,
-				"type": "object",
-				"required": ["int", "str"]
-			}`,
+			name:  "error-unsupported",
+			input: schema.For[map[string]string],
+			error: "unsupported type: map[string]string",
 		},
 		{
 			name: "error-bool",
@@ -494,74 +374,39 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 			error: "invalid bool tag 'required' for field 'Value': bad",
 		},
 		{
-			name: "error-int",
-			input: schema.For[struct {
-				Value string `json:"value" minLength:"bad"`
-			}],
-			error: "invalid int tag 'minLength' for field 'Value': bad (strconv.Atoi: parsing \"bad\": invalid syntax)",
-		},
-		{
-			name: "error-float",
-			input: schema.For[struct {
-				Value int `json:"value" minimum:"bad"`
-			}],
-			error: "invalid float tag 'minimum' for field 'Value': bad (strconv.ParseFloat: parsing \"bad\": invalid syntax)",
-		},
-		{
 			name: "error-json",
 			input: schema.For[struct {
-				Value int `json:"value" example:"bad"`
+				Value int `json:"value" enum:"bad"`
 			}],
 			error: `invalid integer tag value 'bad' for field 'Value': invalid character 'b' looking for beginning of value`,
 		},
 		{
 			name: "error-json-bool",
 			input: schema.For[struct {
-				Value bool `json:"value" example:"123"`
+				Value bool `json:"value" enum:"123"`
 			}],
 			error: `invalid boolean tag value '123' for field 'Value'`,
 		},
 		{
 			name: "error-json-int",
 			input: schema.For[struct {
-				Value int `json:"value" example:"true"`
+				Value int `json:"value" enum:"true"`
 			}],
 			error: `invalid integer tag value 'true' for field 'Value'`,
 		},
 		{
 			name: "error-json-int2",
 			input: schema.For[struct {
-				Value int `json:"value" example:"1.23"`
+				Value int `json:"value" enum:"1.23"`
 			}],
 			error: `invalid integer tag value '1.23' for field 'Value'`,
-		},
-		{
-			name: "error-json-array",
-			input: schema.For[struct {
-				Value []int `json:"value" example:"true"`
-			}],
-			error: `invalid array tag value 'true' for field 'Value'`,
-		},
-		{
-			name: "error-json-array-value",
-			input: schema.For[struct {
-				Value []string `json:"value" example:"[true]"`
-			}],
-			error: `invalid string tag value 'true' for field 'Value[0]'`,
-		},
-		{
-			name: "error-json-array-value",
-			input: schema.For[struct {
-				Value []int `json:"value" example:"[true]"`
-			}],
-			error: `invalid integer tag value 'true' for field 'Value[0]'`,
 		},
 		{
 			name: "error-json-object",
 			input: schema.For[struct {
 				Value struct {
 					Foo string `json:"foo"`
-				} `json:"value" example:"true"`
+				} `json:"value" enum:"true"`
 			}],
 			error: `invalid object tag value 'true' for field 'Value'`,
 		},
@@ -570,7 +415,7 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 			input: schema.For[struct {
 				Value struct {
 					Foo string `json:"foo"`
-				} `json:"value" example:"{\"foo\": true}"`
+				} `json:"value" enum:"{\"foo\": true}"`
 			}],
 			error: `invalid string tag value 'true' for field 'Value.foo'`,
 		},
@@ -578,7 +423,7 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 
 	for _, testcase := range testcases {
 		t.Run(testcase.name, func(t *testing.T) {
-			schema, err := testcase.input()
+			actual, err := testcase.input()
 			if testcase.error != "" {
 				assert.EqualError(t, err, testcase.error)
 
@@ -586,7 +431,7 @@ func TestSchema(t *testing.T) { //nolint:maintidx
 			}
 
 			assert.NoError(t, err)
-			b, _ := json.Marshal(schema)
+			b, _ := json.Marshal(actual)
 			var e bytes.Buffer
 			_ = json.Compact(&e, []byte(testcase.expected))
 			assert.Equal(t, e.String(), string(b))

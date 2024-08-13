@@ -89,7 +89,7 @@ func FunctionFor[A, R any, S functional[A, R] | Assistant](s S,
 type FunctionSchema struct {
 	Name        string
 	Description string
-	Parameter   *schema.Schema
+	Parameter   schema.Schema
 }
 
 func (f Function[A, R, FN]) Schema() (FunctionSchema, error) {

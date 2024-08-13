@@ -50,8 +50,8 @@ func TestAssistant_Run(t *testing.T) {
 
 type (
 	location struct {
-		City  string `json:"city"            description:"The city name"          example:"San Francisco"`
-		State string `json:"state,omitempty" description:"The state abbreviation" example:"CA"`
+		City  string `json:"city"            description:"The city name" enum:"San Francisco, New York"`
+		State string `json:"state,omitempty" description:"The state abbreviation"`
 	}
 	temperature struct {
 		Temperature float32
