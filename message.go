@@ -20,12 +20,6 @@ const (
 	RoleAssistant Role = "assistant"
 )
 
-const (
-	DetailAuto Detail = "auto"
-	DetailHigh Detail = "high"
-	DetailLow  Detail = "low"
-)
-
 type (
 	Message struct {
 		Role    Role
@@ -49,11 +43,8 @@ type (
 	Image[F string | []byte] struct {
 		embedded.Content
 
-		URL F
-		// Detail specifies the detail level of the image.
-		Detail Detail
+		Image F
 	}
-	Detail string
 
 	// File is used to upload documents that can be used with tools.
 	File struct {

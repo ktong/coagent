@@ -37,7 +37,7 @@ type Function[A, R any, FN functional[A, R]] struct {
 	Function FN
 }
 
-// FunctionFor creates a function tool for either a function or a assistant.
+// FunctionFor creates a function tool for either a function or an assistant.
 func FunctionFor[A, R any, S functional[A, R] | Assistant](s S,
 ) Function[A, R, func(context.Context, *Thread, A) (R, error)] {
 	switch from := any(s).(type) {

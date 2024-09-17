@@ -90,32 +90,33 @@ func toMessage(m assistant.Message) message {
 	msg := message{
 		Role: string(m.Role),
 	}
+	// TODO: support detail in Image.
 	for _, c := range m.Content {
 		switch cont := c.(type) {
 		case assistant.Text:
 			msg.Content = append(msg.Content, content{Type: "text", Text: cont.Text})
 		case assistant.Image[string]:
-			parsedURL, _ := url.Parse(cont.URL)
+			parsedURL, _ := url.Parse(cont.Image)
 			switch parsedURL.Scheme {
 			case "", "file":
 				msg.Content = append(msg.Content,
-					content{Type: "image_file", ImageFile: &imageFile{FileID: parsedURL.Path, Detail: string(cont.Detail)}},
+					content{Type: "image_file", ImageFile: &imageFile{FileID: parsedURL.Path}},
 				)
 			default:
 				msg.Content = append(msg.Content,
-					content{Type: "image_url", ImageURL: &imageURL{URL: cont.URL, Detail: string(cont.Detail)}})
+					content{Type: "image_url", ImageURL: &imageURL{URL: cont.Image}})
 			}
 		case assistant.Image[[]byte]:
-			mime := http.DetectContentType(cont.URL)
+			mime := http.DetectContentType(cont.Image)
 			switch mime {
 			case "image/gif", "image/jpeg", "image/pjpeg":
-				maxEncLen := base64.StdEncoding.EncodedLen(len(cont.URL))
+				maxEncLen := base64.StdEncoding.EncodedLen(len(cont.Image))
 				buf := make([]byte, maxEncLen) //nolint:makezero
-				base64.StdEncoding.Encode(buf, cont.URL)
+				base64.StdEncoding.Encode(buf, cont.Image)
 				u := fmt.Sprintf("Data:%s;base64,%s", mime, buf)
 
 				msg.Content = append(msg.Content,
-					content{Type: "image_url", ImageURL: &imageURL{URL: u, Detail: string(cont.Detail)}},
+					content{Type: "image_url", ImageURL: &imageURL{URL: u}},
 				)
 			}
 		}
