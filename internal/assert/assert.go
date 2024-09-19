@@ -34,11 +34,3 @@ func EqualError(tb testing.TB, err error, message string) {
 		tb.Errorf("\n  actual: %v\nexpected: %v", err.Error(), message)
 	}
 }
-
-func True(tb testing.TB, value bool) {
-	tb.Helper()
-
-	if !value {
-		tb.Errorf("expected True")
-	}
-}
