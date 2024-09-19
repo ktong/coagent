@@ -6,9 +6,3 @@ package embedded
 type Tool interface {
 	tool()
 }
-
-type BuiltInTool interface {
-	Tool
-
-	builtInTool()
-}

@@ -3,6 +3,6 @@
 
 package embedded
 
-type Option interface {
-	option()
+type RunOption interface {
+	runOption()
 }
