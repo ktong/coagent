@@ -1,3 +1,3 @@
-module github.com/ktong/assistant
+module github.com/ktong/coagent
 
-go 1.21
+go 1.22

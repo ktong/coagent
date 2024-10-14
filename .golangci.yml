@@ -7,13 +7,13 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/ktong/assistant)
+      - prefix(github.com/ktong/coagent)
   goheader:
     template: |-
       Copyright (c) {{ YEAR }} the authors
       Use of this source code is governed by a MIT license found in the LICENSE file.
   goimports:
-    local-prefixes: github.com/ktong/assistant
+    local-prefixes: github.com/ktong/coagent
   gomoddirectives:
     replace-local: true
   govet:
@@ -38,7 +38,7 @@ linters:
     - canonicalheader
     - containedctx
     - contextcheck
-    # copyloopvar
+    - copyloopvar
     - cyclop
     - decorder
     # depguard
@@ -51,7 +51,7 @@ linters:
     - errchkjson
     - errname
     - errorlint
-    - exportloopref
+    # exportloopref
     - exhaustive
     # exhaustruct
     - fatcontext
@@ -86,7 +86,7 @@ linters:
     - inamedparam
     - ineffassign
     - interfacebloat
-    # intrange
+    - intrange
     - ireturn
     - lll
     - loggercheck
@@ -120,7 +120,7 @@ linters:
     - staticcheck
     - stylecheck
     - tagalign
-    # tagliatelle
+    - tagliatelle
     - tenv
     - testableexamples
     - testifylint
