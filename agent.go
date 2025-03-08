@@ -3,12 +3,12 @@
 
 package coagent
 
+import "github.com/ktong/coagent/internal/embedded"
+
 // Agent is a purpose-built AI that uses models and calls tools.
-//
-// It's suggested that each instance has a dedicated life-time agent,
-// and should be shutdown while the instance shutdown. So that different instances
-// could run with different version of the assistance.
 type Agent struct {
+	embedded.Tool // Agent can be used as a Tool in another agent.
+
 	Name         string
 	Description  string
 	Model        string

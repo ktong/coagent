@@ -6,14 +6,21 @@ package coagent
 import (
 	"context"
 	"sync/atomic"
+
+	"github.com/ktong/coagent/internal/embedded"
 )
 
-// Runner Loader is the interface that wraps the Run method.
-//
-// Run executes the provided messages using the provided agent and options.
-type Runner interface {
-	Run(ctx context.Context, agent Agent, messages []Message, opts []RunOption) (Message, error)
-}
+type (
+	// Runner Loader is the interface that wraps the Run method.
+	//
+	// Run executes the provided messages using the provided agent and options.
+	Runner interface {
+		Run(ctx context.Context, agent Agent, messages []Message, opts []RunOption) (Message, error)
+	}
+	RunOption interface {
+		embedded.RunOption
+	}
+)
 
 // SetDefaultRunner sets the default runner to be used by the Agent.
 // If the provided Runner is nil, the default runner is not changed.
